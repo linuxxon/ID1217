@@ -2,10 +2,11 @@
 
    features: uses a barrier; the Worker[0] computes
              the total sum from partial sums computed by Workers
-             and prints the total sum to the standard output
+             and the minimum and maximum values, with positions.
+             And prints the total sum to the standard output
 
    usage under Linux:
-     gcc matrixSum.c -lpthread
+     gcc matrixSum-a.c -lpthread
      a.out size numWorkers
 
 */
@@ -92,12 +93,12 @@ int main(int argc, char *argv[]) {
   if (numWorkers > MAXWORKERS) numWorkers = MAXWORKERS;
   stripSize = size/numWorkers;
 
-  srand(time(NULL));
+  srand(7);
 
   /* initialize the matrix */
   for (i = 0; i < size; i++) {
 	  for (j = 0; j < size; j++) {
-          matrix[i][j] = rand()%1000;
+          matrix[i][j] = rand()%99;
 	  }
   }
 
@@ -129,7 +130,7 @@ int main(int argc, char *argv[]) {
    After a barrier, worker(0) computes and prints the total */
 void *Worker(void *arg) {
   long myid = (long) arg;
-  int total;
+  long total;
   int i, j, first, last;
 
 #ifdef DEBUG

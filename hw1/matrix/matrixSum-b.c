@@ -1,11 +1,11 @@
 /* matrix summation using pthreads
 
-   features: uses a barrier; the Worker[0] computes
+   features: uses mutex's to update shared global variabeles.
              the total sum from partial sums computed by Workers
              and prints the total sum to the standard output
 
    usage under Linux:
-     gcc matrixSum.c -lpthread
+     gcc matrixSum-b.c -lpthread
      a.out size numWorkers
 
 */
@@ -77,12 +77,12 @@ int main(int argc, char *argv[]) {
   if (numWorkers > MAXWORKERS) numWorkers = MAXWORKERS;
   stripSize = size/numWorkers;
 
-  srand(time(NULL));
+  srand(7);
 
   /* initialize the matrix */
   for (i = 0; i < size; i++) {
 	  for (j = 0; j < size; j++) {
-          matrix[i][j] = rand()%1000;
+          matrix[i][j] = rand()%99;
 	  }
   }
 
@@ -100,9 +100,8 @@ int main(int argc, char *argv[]) {
   /* Init sum, min, max */
   sum = 0;
   min.value = matrix[0][0];
-  min.x = min.y = 0;
   max.value = matrix[0][0];
-  max.x = max.y = 0;
+  min.x = min.y = max.x = max.y = 0;
 
   /* do the parallel work: create the workers */
   start_time = read_timer();
@@ -110,8 +109,8 @@ int main(int argc, char *argv[]) {
     pthread_create(&workerid[l], &attr, Worker, (void *) l);
 
   /* Wait for all threads */
-  for (l = 0; l < numWorkers; l++)
-      pthread_join(workerid[l], NULL);
+  for (i = 0; i < numWorkers; i++)
+      pthread_join(workerid[i], NULL);
 
   /* get end time */
   end_time = read_timer();
@@ -128,7 +127,7 @@ int main(int argc, char *argv[]) {
    After a barrier, worker(0) computes and prints the total */
 void *Worker(void *arg) {
   long myid = (long) arg;
-  int total;
+  long total;
   int i, j, first, last;
 
 #ifdef DEBUG

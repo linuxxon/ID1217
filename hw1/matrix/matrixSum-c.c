@@ -1,11 +1,12 @@
 /* matrix summation using pthreads
 
-   features: uses a barrier; the Worker[0] computes
-             the total sum from partial sums computed by Workers
-             and prints the total sum to the standard output
+   features: uses mutex to update global variables for sum, min and max. The sum is
+             updated after each row and the min, max is updated as needed.
+             Values are computed by Workers and printed to standard output upon all
+             threads finishing.
 
    usage under Linux:
-     gcc matrixSum.c -lpthread
+     gcc matrixSum-c.c -lpthread
      a.out size numWorkers
 
 */
@@ -26,7 +27,7 @@
 pthread_mutex_t bag_mutex, sum_mutex, min_mutex, max_mutex;    /* Mutexes */
 
 int numWorkers;           /* number of workers */ 
-int next_row = 0;
+int next_row = 0;       /* My bag */
 
 /* timer */
 double read_timer() {
@@ -42,13 +43,14 @@ double read_timer() {
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
+/* Struct to hold min and max */
 typedef struct {
     int x, y;
     int value;
 } Pos;
 
 double start_time, end_time; /* start and end times */
-int size, stripSize;  /* assume size is multiple of numWorkers */
+int size;  /* assume size is multiple of numWorkers */
 long sum;
 Pos min, max;
 int matrix[MAXSIZE][MAXSIZE]; /* matrix */
@@ -67,7 +69,7 @@ int main(int argc, char *argv[]) {
   pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 
   /* initialize mutex and condition variable */
-  pthread_mutex_init(&_mutex, NULL);
+  pthread_mutex_init(&bag_mutex, NULL);
   pthread_mutex_init(&sum_mutex, NULL);
   pthread_mutex_init(&max_mutex, NULL);
   pthread_mutex_init(&min_mutex, NULL);
@@ -77,14 +79,13 @@ int main(int argc, char *argv[]) {
   numWorkers = (argc > 2)? atoi(argv[2]) : MAXWORKERS;
   if (size > MAXSIZE) size = MAXSIZE;
   if (numWorkers > MAXWORKERS) numWorkers = MAXWORKERS;
-  stripSize = size/numWorkers;
 
-  srand(time(NULL));
+  srand(7);
 
   /* initialize the matrix */
   for (i = 0; i < size; i++) {
 	  for (j = 0; j < size; j++) {
-          matrix[i][j] = rand()%1000;
+          matrix[i][j] = rand()%99;
 	  }
   }
 
@@ -102,9 +103,8 @@ int main(int argc, char *argv[]) {
   /* Init sum, min, max */
   sum = 0;
   min.value = matrix[0][0];
-  min.x = min.y = 0;
   max.value = matrix[0][0];
-  max.x = max.y = 0;
+  min.x = min.y = max.x = max.y = 0;    /* Actually initialized to 0 as globals */
 
   /* do the parallel work: create the workers */
   start_time = read_timer();
@@ -130,47 +130,52 @@ int main(int argc, char *argv[]) {
    After a barrier, worker(0) computes and prints the total */
 void *Worker(void *arg) {
   long myid = (long) arg;
-  int total;
-  int i, j, first, last;
+  long total;
+  int row, j;
 
 #ifdef DEBUG
   printf("worker %d (pthread id %d) has started\n", myid, pthread_self());
 #endif
 
-  /* determine first and last rows of my strip */
-  first = myid*stripSize;
-  last = (myid == numWorkers - 1) ? (size - 1) : (first + stripSize - 1);
+  while (1) {
+      /* Fetch new task */
+      pthread_mutex_lock(&bag_mutex);
+      row = next_row++;
+      pthread_mutex_unlock(&bag_mutex);
 
-  /* sum values in my strip */
-  total = 0;
-  for (i = first; i <= last; i++)
-    for (j = 0; j < size; j++) {
-      total += matrix[i][j];
-      
-      /* Update min and max */
-      if (min.value > matrix[i][j]) {
-          pthread_mutex_lock(&min_mutex);
-          if (min.value > matrix[i][j]) {
-              min.value = matrix[i][j];
-              min.x = j;
-              min.y = i;
-          }
-          pthread_mutex_unlock(&min_mutex);
-      } else if (max.value < matrix[i][j]) {
-          pthread_mutex_lock(&max_mutex);
-          if (max.value < matrix[i][j]) {
-              max.value = matrix[i][j];
-              max.x = j;
-              max.y = i;
-          }
-          pthread_mutex_unlock(&max_mutex);
+      if (row >= size) /* No more task - exit */
+          pthread_exit(NULL);
+
+      /* sum values in my strip */
+      total = 0;
+      for (j = 0; j < size; j++) {
+        total += matrix[row][j];
+        
+        /* Update min and max */
+        if (min.value > matrix[row][j]) {
+            pthread_mutex_lock(&min_mutex);
+            if (min.value > matrix[row][j]) {
+                min.value = matrix[row][j];
+                min.x = j;
+                min.y = row;
+            }
+            pthread_mutex_unlock(&min_mutex);
+        } else if (max.value < matrix[row][j]) {
+            pthread_mutex_lock(&max_mutex);
+            if (max.value < matrix[row][j]) {
+                max.value = matrix[row][j];
+                max.x = j;
+                max.y = row;
+            }
+            pthread_mutex_unlock(&max_mutex);
+        }
       }
-    }
 
-  /* Update sum */
-  pthread_mutex_lock(&sum_mutex);
-  sum += total;
-  pthread_mutex_unlock(&sum_mutex);
+      /* Update sum */
+      pthread_mutex_lock(&sum_mutex);
+      sum += total;
+      pthread_mutex_unlock(&sum_mutex);
+  }
 
   /* Exit */
   pthread_exit(NULL);

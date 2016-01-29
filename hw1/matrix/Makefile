@@ -2,9 +2,11 @@
 #
 # Targets:
 # 	all - builld all three sub-assignments
-# 	a - build only assignment 1.a
-# 	b - build only assignment 1.b
-# 	c - build only assignment 1.c
+# 	original - build original code given
+# 	a - build assignment 1.a
+# 	b - build assignment 1.b
+# 	c - build assignment 1.c
+# 	clean - remove any executables
 
 CC= gcc
 
@@ -12,9 +14,12 @@ CFLAGS=
 
 LDFLAGS= -lpthread
 
-.PHONY: all a b c clean
+.PHONY: all original a b c clean
 
-all: a b c
+all: original a b c
+
+original:
+	$(CC) $(CFLAGS) -o matrixSum  matrixSum.c $(LDFLAGS)
 
 a:
 	$(CC) $(CFLAGS) -o matrixSum-a  matrixSum-a.c $(LDFLAGS)
@@ -26,4 +31,4 @@ c:
 	$(CC) $(CFLAGS) -o matrixSum-c  matrixSum-c.c $(LDFLAGS)
 
 clean:
-	-rm -f matrixSum-a matrixSum-b matrixSum-c
+	-rm -f matrixSum matrixSum-a matrixSum-b matrixSum-c
