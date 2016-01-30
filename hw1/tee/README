@@ -1,0 +1,37 @@
+###################################
+# README for Homework 1 - Problem 4: UNIX tee
+# 
+# Author: Rasmus Linusson
+# Last modified: 30/01-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of programs:
+
+How to make:
+    A makefile is provided in this directory with targets to build the program
+    with and without debugging enabled. Debugging texts include actions taken
+    by the three threads.
+
+    Building without debugging is done by executing 'make build' or simply
+    'make'. With debugging, 'make debug'
+
+How to run:
+    A script to build and run a test is povided in this same directory.
+    The "test" would execute the program with a text file as input, after
+    printing the very same, showing the standard ouput from execution then
+    printing the contents of the file with the filename entered as an
+    argument to tee.
+
+    Running tee is usually done in the following manner:
+        <program> | tee [filename] [ | <program> ]
+
+    The test runs tee with the text file as standard input, as follows
+        tee test.outfile < text > test.stdout
+
+    The result is determined by comparing standard output and the outfile to
+    the text file input with the cmp program.
+
+    After the test is complete the
+    result is printed to standard output and the files are removed.
