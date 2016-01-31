@@ -17,7 +17,7 @@
  * For course ID1217 at KTH
  *
  * Author: Rasmus Linusson
- * Last modified: 30/01-2016
+ * Last modified: 31/01-2016
  */ 
 
 /* Fetch all the right functions */
@@ -29,41 +29,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_BUFFER 100
+#define MAX_BUFFER_SIZE 10
 #define MAX_LENGTH 200
 
 /* Thread task functions */
 void* in_stream(void*);
-void* out_worker(void*);
+void* out_stream(void*);
 
-/* Circular buffer to hold string from standard input to be handled
- * If only two readers 'read' can be used as boolean {0,1}.
- *
- * If more readers are necessary read can be used with a mask
- * letting read=2^(n-1)-1 signify that all readers have read the slot
- * */
+/* Circular buffer to hold string from standard input to be handled */
 typedef struct {
     char* str;
-    unsigned read;
 } buff_slot;
 
-buff_slot buffer[MAX_BUFFER];
+buff_slot buffer[MAX_BUFFER_SIZE];
 
-/* Buffer bound variables */
-int buff_size = 0;    /* Number of elements currently held in buffer */
-int buff_write = 0; /* Next slot to write to */
+/* Define stuff, accessed with 'buff_size_mutex' */
+int buff_size[2] = {0,0};
+
+/* Locks and condition variables */
+pthread_mutex_t buff_size_mutex;
+pthread_cond_t buff_full, buff_empty;
 
 /* Indicator set by in_stream to indicate end of stream */
 int done = 0;
 
-/* Locks and condition variables for accessing, and moving buffer bound */
-
-/* buff_stream/file need no mutexes as even if there is miss information the
- * counter will catch up after the next read so who cares, buffer being full is
- * not a problem here either as the readers can continue to read  and then
- * update the counter */
-pthread_mutex_t buff_size_mutex, buff_read_mutex, buff_write_mutex;
-pthread_cond_t buff_full, buff_empty;
+/* Number of output streams */
+int out_streams = 2;
 
 /* Print standard input to filename provided and to standard output */
 int main(int argc, char* argv[])
@@ -84,9 +75,11 @@ int main(int argc, char* argv[])
                     "Can't open file %s for reading. Still redirecting to stdout",
                     filename);
     }
+    else   /* Correct number of out_streams, as no filename given */
+        out_streams = 1;
 
     /* Init buffer */
-    for (i = 0; i < MAX_BUFFER; i++)
+    for (i = 0; i < MAX_BUFFER_SIZE; i++)
         buffer[i].str = (char *) malloc(sizeof(char)*MAX_LENGTH);
 
     /* Start a thread to read from standard input */
@@ -94,73 +87,86 @@ int main(int argc, char* argv[])
 
     /* Start a thread to write to file */
     if (fp != NULL)
-        pthread_create(&tid, NULL, out_worker, (void *) fp);
+        pthread_create(&tid, NULL, out_stream, (void *) fp);
 
     /* Let main thread do output to standard output */
-    out_worker((void *)stdout);
+    out_stream((void *)stdout);
 
-    /* Free buffer 
-    for (i = 0; i < MAX_BUFFER; i++)
-        free(buffer[i].str);
-
-    pthread_exit(NULL);
-    */
+    /* out_stream calls pthread_exit */
 }
 
-/* Read standard input and store strings in buffer */
-void* in_stream(void * arg)
+/* Helper function for in_stream, makes code easier to read and handles
+ * semantics differences for one and two output streams */
+int max_buff()
+{
+    if (out_streams == 1)
+        return buff_size[0];
+    else
+        return buff_size[0] > buff_size[1] ?  buff_size[0] : buff_size[1];
+}
+
+/* Read stdin and store in buffer */
+void* in_stream(void* arg)
 {
     /* Detach thread */
     pthread_detach(pthread_self());
 
-    /* Do work */
+    /* Keep track of which slot to write to */
+    int buff_write = 0;
+
+    /* Functionaliy */
     while (1)
     {
-        if (buff_size < MAX_BUFFER) /* There's room left */
+        /* Wait until there's room in the buffer */
+        pthread_mutex_lock(&buff_size_mutex);
+
+        /* Buffer is full, wait for consumer signal */
+        while (max_buff() == MAX_BUFFER_SIZE)
         {
-            if (fgets(buffer[buff_write].str, MAX_LENGTH, stdin) != NULL)
-            {
-                /* Init read flag */
-                buffer[buff_write].read = 0;
-
-                /* Update for everyone else to see */
-                pthread_mutex_lock(&buff_size_mutex);
-                buff_size++;                        /* Update buffer size */
 #ifdef DEBUG
-                printf("Instream at slot %d buff_size %d\n", buff_write, buff_size);
+            printf("Instream waiting buff[0] %d  buff[1] %d max_buff %d buff_full\n",
+                    buff_size[0], buff_size[1], max_buff());
 #endif
-                pthread_mutex_unlock(&buff_size_mutex);
-
-                /* Update write slot */
-                pthread_mutex_lock(&buff_write_mutex);
-                buff_write = (buff_write + 1) % MAX_BUFFER;
-                pthread_cond_signal(&buff_empty);   /* If someone was waiting, set them free */
-                pthread_mutex_unlock(&buff_write_mutex);
-            }
-            if (feof(stdin))
-            {
-#ifdef DEBUG
-                printf("In stream is ended\n");
-#endif
-                /* Signal all waiting to wake up and exit */
-                pthread_mutex_lock(&buff_size_mutex);
-                done = 1;
-                pthread_cond_broadcast(&buff_empty);
-                pthread_mutex_unlock(&buff_size_mutex);
-                pthread_exit(NULL);
-            }
+            pthread_cond_wait(&buff_full, &buff_size_mutex);
         }
-        else    /* Buffer is full, wait for a consumer to empty */
+        pthread_mutex_unlock(&buff_size_mutex);
+
+        /* Read new data */
+        if (fgets(buffer[buff_write].str, MAX_LENGTH, stdin) != NULL)
         {
+#ifdef DEBUG
+            printf("Instream at slot %d size %d puts %s",
+                    buff_write, max_buff(), buffer[buff_write].str);
+#endif
+            /* Update buffer bounds */
             pthread_mutex_lock(&buff_size_mutex);
-            pthread_cond_wait(&buff_full, &buff_size_mutex);   /* Wait for a consumer to read */
+            buff_size[0]++;
+            
+            /* Might not be writing to file */
+            if (out_streams == 2)
+                buff_size[1]++;
+
+            buff_write = (buff_write+1) % MAX_BUFFER_SIZE;
+
+            /* Signal both consumers */
+            pthread_cond_broadcast(&buff_empty);
             pthread_mutex_unlock(&buff_size_mutex);
+        }
+        if (feof(stdin))    /* Stream is closed */
+        {
+#ifdef DEBUG
+            printf("Instream is ended\n");
+#endif
+            /* Signal both consumers to exit if done */
+            done = 1;   /* This is ok w/o lock */
+            pthread_cond_broadcast(&buff_empty);
+            pthread_exit(NULL);
         }
     }
 }
 
-/* Print buffer to fp */
-void* out_worker(void * void_fp)
+/* Read buffer and write to file specified by argument */
+void* out_stream(void* void_fp)
 {
     /* Detach thread */
     pthread_detach(pthread_self());
@@ -173,57 +179,49 @@ void* out_worker(void * void_fp)
     while (1)
     {
         pthread_mutex_lock(&buff_size_mutex);
-        
-        /* if buffer is empty, wait */
-        while (buff_size == 0 && !done)
-            pthread_cond_wait(&buff_empty, &buff_size_mutex);
 
+        /* Wait for done or work, both are signaled from in_stream */
+        if (buff_size[id] == 0 && !done)
+        {
 #ifdef DEBUG
-        printf("Outstream id %d at slot %d buff_size %d done %d buff_write %d prints: %s\n", id, current_slot, buff_size, done, buff_write, buffer[current_slot].str);
+            printf("Outstream id %d at slot %d size %d waiting buff_empty\n",
+                    id, current_slot, buff_size[id]);
 #endif
+            pthread_cond_wait(&buff_empty, &buff_size_mutex);
+        }
+
         pthread_mutex_unlock(&buff_size_mutex);
 
-        if (buff_size == 0 && done) /* No more work */
-            pthread_exit(NULL);
-
-        /* Check against buffer bound */
-        pthread_mutex_lock(&buff_write_mutex);
-
-        while (current_slot == buff_write && !done)
-            pthread_cond_wait(&buff_empty, &buff_write_mutex);
-
-        if (current_slot == buff_write && done)
+        /* Is done? */
+        if (buff_size[id] == 0 && done)
         {
-            pthread_mutex_unlock(&buff_write_mutex);
+#ifdef DEBUG
+            printf("Outstream id %d exiting\n", id);
+#endif
+            fclose(fp);
             pthread_exit(NULL);
         }
-        pthread_mutex_unlock(&buff_write_mutex);
 
-        /* More work to be done */
+#ifdef DEBUG
+        printf("Outstream id %d at slot %d size %d print %s\n",
+                id, current_slot, buff_size[id], buffer[current_slot].str);
+#endif
+        /* Aparently there is work to be done */
         fprintf(fp, "%s", buffer[current_slot].str);
 
-        /* Update buffer bounds */
-        pthread_mutex_lock(&buff_read_mutex);
-        if (buffer[current_slot].read)
-        {
-            /* Both threads have read this, recycle */
-            pthread_mutex_lock(&buff_size_mutex);
-            buff_size--;
+        /* Update bounds */
+        pthread_mutex_lock(&buff_size_mutex);
+        buff_size[id]--;
 
-            /* If buff was full, we can signal here */
-            pthread_cond_signal(&buff_full);
-
-            pthread_mutex_unlock(&buff_size_mutex);
 #ifdef DEBUG
-            printf("Outstream id %d at slot %d decrements buff_size to %d\n", id, current_slot, buff_size);
+        printf("Outstream id %d at slot %d decrement buff_size to %d\n",
+                id, current_slot, buff_size[id]);
 #endif
-        }
-        else
-            buffer[current_slot].read = 1;
+        /* Signal instream ther is space in buffer */
+        pthread_cond_signal(&buff_full);
+        pthread_mutex_unlock(&buff_size_mutex);
 
-        pthread_mutex_unlock(&buff_read_mutex);
-
-        /* Move individual read slot */
-        current_slot = (current_slot + 1) % MAX_BUFFER;
+        /* Update own bound */
+        current_slot = (current_slot+1) % MAX_BUFFER_SIZE;
     }
 }
