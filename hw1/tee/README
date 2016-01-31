@@ -8,6 +8,26 @@
 ###################################
 
 Description of programs:
+    The goal of the program is to "split" the standard input stream to
+    standard output and a file.
+
+    The structure of the implementation is based on a circular buffer and three
+    threads working concurrently with it.
+
+    To keep data integrity each consumer has it's own counter to keep track
+    of what has been written, what hasn't and where to wait for the producer.
+    
+    The producer will keep adding new data to the buffer as long as the
+    largest of the two buffers is lesser than the buffer size. The
+    restriction is implemented using a conditional variable called 'buff_full'.
+
+    Each time new data is deposited into the buffer, the conditional variable
+    'buff_empty' is signaled with a broadcast to wake any consumers waiting
+    for more data. After each individual consumption from the buffer
+    'buff_full' is signaled in case a slot in the buffer has been freed.
+
+    When the producer reaches EOF the variable 'done' is set and 'buff_empty'
+    is signaled to wake any waiting consumers to exit.
 
 How to make:
     A makefile is provided in this directory with targets to build the program
@@ -33,5 +53,9 @@ How to run:
     The result is determined by comparing standard output and the outfile to
     the text file input with the cmp program.
 
-    After the test is complete the
-    result is printed to standard output and the files are removed.
+    To show that the program behaves correctly with the cyclic buffer the
+    buffer size is set to half that of the input file.
+
+    To rule out any major race conditions the test is run 100 times, if any
+    defects are encountered the test is aborded, an "Test failed!" is
+    echoed to stdout and the value 1 is returned as exit status.
