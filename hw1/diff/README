@@ -1,0 +1,48 @@
+###################################
+# README for Homework 1 - Problem 5: UNIX diff
+# 
+# Author: Rasmus Linusson
+# Last modified: 5/02-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of programs:
+    The goal of the program is to print out lines that differ between two
+    files. This is a simple implementation that prints the name of the file
+    and the linenumber for each line that differs.
+
+    If one file is longer than the other all the remaining lines are printed
+
+    The structure of the implementation is based on two syncronous cyclic
+    buffers and three threads working concurrently with them.
+
+    The two producers will add lines from their files to their respective
+    buffers until reaching EOF whereby incrementing the global variable
+    'done' indicating both files are done when the variable takes on the
+    value 2.
+
+    When there are lines in both buffers a third thread compares the lines
+    and prints them if the they differ. After one file finnishes the consumer
+    will print the remaining lines of the other file regardless.
+
+    Each time new data is deposited into the buffer, the conditional variable
+    'buff_empty' is signaled with a broadcast to wake any consumers waiting
+    for more data. After each individual consumption from the buffer
+    'buff_full' is signaled in case a slot in the buffer has been freed.
+
+How to make:
+    A makefile is provided in this directory with targets to build the program
+    with and without debugging enabled. Debugging texts include actions taken
+    by the three threads.
+
+    Building without debugging is done by executing 'make build' or simply
+    'make'. With debugging, 'make debug'
+
+How to run:
+    Running diff is done as follows
+        diff file1 file 2
+
+    A script that build and run a test is provided in this same directory.
+    Diff is run with two files provided with minor differences and different
+    lengths.
