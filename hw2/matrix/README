@@ -2,30 +2,24 @@
 # README for Homework 2 - Problem 1: Compute Sum, Min and Max of Matrix ELements (20 points)
 # 
 # Author: Rasmus Linusson
-# Last modified: 8/02-2016
+# Last modified: 12/02-2016
 #
 # For course ID1217 at KTH
 ###################################
 
+Changes done:
+  Uncommenting 'rand()%99' causes overflow with ints so all sums are converted to
+  longs insted
+
 Description of programs:
-1.a) Is an extention of the given code (from matrixSum.c) that also finds the
-     value and position of the minimal and maximal elements in the matrix.
-     This is done with two global structs with respective mutex's
+    The variables min and max has been added and their updating is protected by the
+    OpenMP construct critical which creates a critical section.
 
-1.b) Same result as 1.a) but implemented with pthread_join in main thread instead
-     of barrier semantics. The idea of having an array with subsums has also been
-     scrapped
-
-1.c) Change of the task assignment from 1.b). Instead of static pre-defined areas
-     for each worker the bag semantics is used
 
 How to make:
-    A makefile is provided in this directory with targets to build the original program
-    (with the long to int edit), the assignements (a, b & c) and clean up the built
-    executables (clean)
+    A makefile is provided in this directory with targets to build the program
 
     All programs can be built with 'make all' and each individual version can be built
-    by their individual targets (original, a, b & c).
 
 How to run:
     A script to build and run the executables has been provided in this same 

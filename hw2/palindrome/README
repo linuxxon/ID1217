@@ -36,17 +36,13 @@ Description of programs:
     the function with the same string a palindrome can be detected.
 
 How to make:
-    A makefile is provided in this directory with targets to build the original program
-    (with the long to int edit), the assignements (a, b & c) and clean up the built
-    executables (clean)
-
-    All programs can be built with 'make all' and each individual version can be built
-    by their individual targets (original, a, b & c).
+    A makefile is provided in this directory with targets to build the program.
+    To enable debug printouts make the target 'debug'
 
 How to run:
     A script to build and run the executables has been provided in this same 
     directory. To run all assignments simply run './run.sh'. After all assignments
     has been run the executables are cleand by 'make clean'
 
-    Output will be formated by row, first which executable is run then it's output
-    after a newline
+    To test the applications performace you can run the performance_test script that
+    will also create a nice plot with the speedup per processor core.
