@@ -23,11 +23,15 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <omp.h>
+
 #define MAX_WORDS 32000
 #define MAX_WORD_LENGTH 128
 #define MAX_THREADS 12
 
 #define OUTFILE "palindromes.res"
+
+double start_time, end_time;
 
 int num_words = 0;
 int num_palindroms = 0;
@@ -44,10 +48,15 @@ int is_palindrome(char* str1, char* str2, int length1, int length2);
 int main(int argc, char* argv[])
 {
     int i=0, j=0;
+    int num_threads = MAX_THREADS;
     char* filename = NULL;
 
     if (argc > 1)
         filename = argv[1];
+    if (argc > 2)
+        num_threads = atoi(argv[2]);
+
+    omp_set_num_threads(num_threads);
 
     /* Init dictionary */
     FILE* fp = fopen(filename, "r");
@@ -74,6 +83,9 @@ int main(int argc, char* argv[])
             break;
     }
     fclose(fp);
+
+    /* Record time */
+    start_time = omp_get_wtime();
 
     /* Do stuff in parallell */
 #pragma omp parallel for private(i,j)
@@ -110,8 +122,21 @@ int main(int argc, char* argv[])
         }
     }
 
-    printf("Found %d palindroms\n", num_palindroms);
-    /* Perhaps done? */
+    /* Done, save time and stuff */
+    end_time = omp_get_wtime();
+
+    /* Report to user */
+    printf("Found %d palindroms in %f seconds\n", num_palindroms, end_time-start_time);
+
+    /* Print result to file */
+    fprintf(out_fp,"Found %d palindroms\n", num_palindroms);
+    i=0;
+    while(i < num_palindroms)
+        fprintf(out_fp, "%s\n", found_palindroms[i++]);
+
+    /* Close outfile */
+    fclose(out_fp);
+
     return 0;
 }
 

@@ -26,4 +26,4 @@ debug:
 	$(CC) $(CFLAGS) -o palindrome  palindrome.c $(LDFLAGS)
 
 clean:
-	-rm -f palindrome
+	-rm -f palindrome palindromes.res
