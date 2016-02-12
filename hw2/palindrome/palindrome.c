@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
     start_time = omp_get_wtime();
 
     /* Do stuff in parallell */
-#pragma omp parallel for private(i,j)
+#pragma omp parallel for private(i,j) schedule(dynamic,1)
     for (i = 0; i < num_words; i++)
     {
         /* Got a word! Word is located at dictionary[i] */
