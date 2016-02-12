@@ -1,0 +1,52 @@
+###################################
+# README for Homework 2 - Problem 3: Find Palindromic Words (40 points)
+# 
+# Author: Rasmus Linusson
+# Last modified: 12/02-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of programs:
+    Palindrome is a program designed to find words that are palindromic. That means
+    words that are palindroms, in other words, spells the same backwards as forwards.
+    And words that are palindromic, if a word backwards becomes another word.
+
+    The program is parallellized and has a specified top number of threads that can
+    be run, which is 12 (as the KTH servers are 12 core machines).
+
+    The execution flow of the program can be categorized as having three sections,
+    the initialization, the examination and the clean up.
+
+    The first part of the program is located inside the main function and loads the
+    available dictionary into memory. The second part is parallellized using OpenMP.
+    The interesting thing here is the choice of using dynamic scheduling instead of
+    the default static scheduling. Despite the added overhead of dynamic scheduling
+    it provides almost double performance per added core/thread.
+
+    When all words have been checked, the total number of found palindroms are printed
+    to standard out and the words are written to a textfile.
+    
+    The operativ part of the program is the check to see if the actual word is
+    palindromic. This is done in two different checks, to see if the word is a palindrom
+    and to see if the word backwards spells another word. The check is done by
+    calling a function called 'is_palindrome' which takes two strings as arguments.
+    If the words are equal in length the characters are checked for equality, one from
+    the start of string one and the other from the end of string two. By calling 
+    the function with the same string a palindrome can be detected.
+
+How to make:
+    A makefile is provided in this directory with targets to build the original program
+    (with the long to int edit), the assignements (a, b & c) and clean up the built
+    executables (clean)
+
+    All programs can be built with 'make all' and each individual version can be built
+    by their individual targets (original, a, b & c).
+
+How to run:
+    A script to build and run the executables has been provided in this same 
+    directory. To run all assignments simply run './run.sh'. After all assignments
+    has been run the executables are cleand by 'make clean'
+
+    Output will be formated by row, first which executable is run then it's output
+    after a newline
