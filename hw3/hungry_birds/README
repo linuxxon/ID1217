@@ -1,0 +1,52 @@
+###################################
+# README for Homework 3 - Problem 1: The Hungry Birds Problem (20 - points)
+# 
+# Author: Rasmus Linusson
+# Last modified: 19/02-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of programs:
+    The objective is to simluate an environment where there are hungry baby birds
+    and one parent bird fetching worms for the babies when they're hungryr.
+
+    The birds are represented by concurrent threads and communicate through
+    a set of three semaphores, one to signal when the dish is empty and the parent 
+    should go fetch worms, 'go_fetch'. This semaphore is also used when the parent
+    is away to keep other babies to chirp for food.  One binary semaphore to lock
+    access to reading the value of the semaphore representing the available worms,
+    'check_dish' and 'get_worm'.
+
+    The babies behavior is defined by the function 'void* baby_bird(void*)' and will
+    loop the functional code until the flag 'done' is set. Each iteration of the loop
+    the babies will check the amount of available worms, if there are non the first
+    to detect this will wake the parent and then wait on the semaphore 'get_worm'.
+    If there is food the baby simply waits on the semaphore, sleeps a randomized
+    length of time.
+
+    The parents behavior is defined by the function 'void* parent_bird(void*)' and
+    as the babies it loops until the flag 'done' is set. The parent starts it's
+    execution by sleeping while waiting on the semaphore 'go_fetch' at which point
+    it will find a randomized amount of worms. Adding to the semaphore 'get_worm'.
+
+The question of fairness:
+    A part of the assignment is to make a comment as to the fairness of the
+    algorithm. This implementation is **NOT**  fair with regard to the birds,
+    this wholly because of the implementation of the semaphores. 
+    The semaphores are kind of similar to first come, first serve and holds no
+    regard as to the invocation order of 'sem_wait'. 
+    With this behavior there is no guarantee that every baby bird will get to
+    eat as there is a risk of the other baby birds always getting through the
+    semaphore every time there are worms available.
+
+How to make:
+    A makefile is provided in this directory with targets to build the program.
+    To enable debug printouts make the target 'debug'
+
+How to run:
+    A script to build and run the executables has been provided in this same 
+    directory. To run the assignment simply run './run.sh'. 
+
+    The program will stop executing at entry of a newline, (return-key) or if it's
+    signaled.
