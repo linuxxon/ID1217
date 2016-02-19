@@ -1,0 +1,54 @@
+###################################
+# README for Homework 3 - Problem 2: The Bear and Honeybees Problem (20 - points)
+# 
+# Author: Rasmus Linusson
+# Last modified: 19/02-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of program:
+    The objective is to simluate an environment where there are several honeybees
+    producing honey and a bear that eats it all when the honeypot is full.
+
+    The bees and the bear is represented by concurrent threads and communicate through
+    a set of three semaphores, one to signal when the pot is empty and the bees can
+    "return" and continue to fill it with honey, 'pot_empty'. One binary semaphore
+    to lock access to the variable representing the amount of portions in the pot
+    'pot_lock' and lastly one semaphore for signaling the bear that the pot is full,
+    'pot_full'.
+
+    The bees behavior is defined by the function 'void* bee(void*)' and will loop
+    the functional code until the flag 'done' is set. Each iteration of the loop
+    the bee will first sleep a randomized amount of time to simulate the collection
+    of pollen then returning to line up in front of the pot, synchronized with the
+    'pot_lock' semaphore. If the pot is not full the bee will get out of line and
+    wait for the bear to eat it all. If there is room in the pot, the bee will
+    deposit its portion, if it fills the pot the bear is awakened.
+
+    The bears behavior is defined by the function 'void* bear(void*)' and as the
+    bees it loops until the flag 'done' is set. The bear starts it's executing by
+    sleeping while waiting on the semaphore 'pot_full' at which point it will lock
+    access to the pot and empty it. When the pot has been emptied all bees are
+    signaled by the 'pot_empty' semaphore, the bear releases the lock and returns
+    to sleep.
+
+The question of fairness:
+    A part of the assignment is to make a comment as to the fairness of the
+    algorithm, with regard to the honeybees. This implementation is **NOT**
+    fair with regard to the bees, this wholly because of the implementation of
+    the semaphores. The semaphores are kind of similar to first come, first
+    serve and holds no regard as to the invocation order of 'sem_wait'. 
+    With this behaviour one unlucky bee may never get to deposit it's portion
+    of honey into the pot because of never getting the semaphore.
+
+How to make:
+    A makefile is provided in this directory with targets to build the program.
+    To enable debug printouts make the target 'debug'
+
+How to run:
+    A script to build and run the executables has been provided in this same 
+    directory. To run the assignment simply run './run.sh'. 
+
+    The program will stop executing at entry of a newline, (return-key) or if it's
+    signaled.
