@@ -1,11 +1,13 @@
+/*
+ * Class defining behavior of an ordinary space vehicle
+ *
+ * Author: Rasmus Linusson
+*/
+
 package Space;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- *
- * @author linuxxon
- */
 
 public class SpaceVehicle implements Runnable {
     private int neededNitrogen = 0;

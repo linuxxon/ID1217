@@ -1,0 +1,66 @@
+###################################
+# README for Homework 4 - Problem 1: A Space Refuling Station
+# 
+# Author: Rasmus Linusson
+# Last modified: 26/02-2016
+#
+# For course ID1217 at KTH
+###################################
+
+Description of programs:
+    The programs goal is to simulate a space refuleing station. Each vehicle is
+    simulated as a concurrent thread. There are two different types of vehicles, the
+    ones that just go around and need to refuel and tankers which carry fuel to leave
+    at the station. After delivering fuel to the station the tankers also need to
+    refuel to get back to their depot.
+
+    The space station is modeled as a monitor with methods to interact with it.
+    The monitor has function (unsynchronized) to interact with other threads. These
+    in turn might call synchronized methods. There is a call to enter the space station,
+    'enter' which will first reserve the amount of fuel that is requested and then wait
+    for a free fueling slot. If the requested amount of fuel isn't available, the
+    thread is suspended until a tanker arrives and registers its fuel deposits.
+
+    There as each vehicle is responsible for refueling itself the functions have been
+    made public and use AtomicIntegers as to prevent race-conditions. There is also
+    a small leap in the semantics where the action of taking one unit is wrapped into
+    a function, giving cause to artefacts where it might seem that the fuel levels
+    'nitrogenLeft' and 'quantumLeft' might be below zero. The same goes for depositing
+    fuel.
+
+    To keep synchornized methods to a minimum the function reserve may take negative
+    parameters as to indicate a tanker wanting to deposit fuel.
+
+    The amount of fuel at the station is measured in two different levels per fuel
+    type. This is the function of the "ticketing" system or reservations. The variables
+    ending in 'Available' is a measure of the fuel not yet reserved by vehicles waiting
+    to refuel while the variables ending with 'Left' indincates the current level
+    of fuel remaining in the stores.
+
+    This ticketing system is based on two steps, first reserving the amount of fuel
+    you need then waiting for a free slot at the refueling pumps (or w/e). When a
+    requirement is not met the thread is blocked waiting on an event to remedy the
+    situation, ie. a tanker delivering new fuel or a vehicle takeing off.
+
+The question of fairness:
+    As there is a ticketing system a vehicle wiil always get the chance to refuel if
+    it's posible even if there are vehicles that have been waiting longer. This ensures
+    that vehicles with small requests won't be blocked by larger ones.
+
+    When tankers arrive, they announce the total amount of fuel they carry as to
+    let vehicles with larger requirements get a reservation for fuel. During the 
+    action of refueling each unit is taken care of separatley and with minimal
+    synchronization, only decrementing an atomic integer, this allows for a very
+    concurrent simulation of the refueling among several vehicles.
+
+    The ability for tankers to deposit fuel concurrently with other vehicles refuling
+    there is a fair competition between each unit of fuel between the refueling
+    vehicles regardless of the total amount of fuel they have reserved.
+
+How to make:
+    A makefile is provided in this directory with targets to build the program.
+
+How to run:
+    The simulation is run with 'make run'
+
+    To run with different than default paramters do it yourself

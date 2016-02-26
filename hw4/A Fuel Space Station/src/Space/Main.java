@@ -1,12 +1,18 @@
+/**
+ * Main method/class - Setting up simulation of a space fuel station
+ *
+ * Each object (except the space station) is represented by concurrent threads
+ * 
+ * Spawn [arg1] amount of ordinary vehicles and [arg2] amount of tanker vehicles
+ * 
+ * Simulation is ended when the ordinary vehicles have done their laps, killing
+ * the tankers
+*/
 package Space;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- *
- * @author linuxxon
- */
 public class Main {
     public static void main(String args[]) {
         /* Defaults */
